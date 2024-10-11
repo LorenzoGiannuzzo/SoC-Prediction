@@ -26,18 +26,18 @@ y_test = np.array(test_1a.iloc[3:, [3]], dtype=np.float32)
 length = len(X_train)
 
 # Reshape the data to 3D for Conv1D layer
-X_train = X_train.reshape((1, len(X_train), 2))
-X_test = X_test.reshape((1, len(X_test), 2))
+X_train = X_train.reshape((len(X_train), 2, 1))
+X_test = X_test.reshape((len(X_test), 2, 1))
 
 # Reshape the labels to match the shape required
-y_train = y_train.reshape((1, len(y_train), 1))
-y_test = y_test.reshape((1, len(y_test), 1))
+y_train = y_train.reshape((len(y_train), 1, 1))
+y_test = y_test.reshape((len(y_test), 1, 1))
 
 # Build the model
 model = Sequential()
 
 # Reduced kernel size and added padding='same' to avoid reducing the output size
-model.add(Conv1D(1, kernel_size=1000, activation='relu', input_shape=(length, 2), padding='same'))
+model.add(Conv1D(1, kernel_size=1000, activation='relu', input_shape=(2,1), padding='same'))
 model.add(Dense(1,activation='linear'))
 
 # Compile the model
@@ -49,8 +49,8 @@ model.fit(X_train, y_train, epochs=50, batch_size=500, validation_data=(X_test, 
 # Evaluate the model
 
 y_pred = model.predict(X_test)
-mae = mean_absolute_error(y_test[0,:,0], y_pred[0,:,0])
-mse = mean_squared_error(y_test[0,:,0], y_pred[0,:,0])
-r2 = r2_score(y_test[0,:,0], y_pred[0,:,0])
+mae = mean_absolute_error(y_test[:,0,0], y_pred[:,0,0])
+mse = mean_squared_error(y_test[:,0,0], y_pred[:,0,0])
+r2 = r2_score(y_test[:,0,0], y_pred[:,0,0])
 print(f'MAE: {mae:.2f}, MSE: {mse:.2f}, R-squared: {r2:.2f}')
 
