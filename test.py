@@ -26,25 +26,32 @@ y_test = np.array(test_1a.iloc[3:, [3]], dtype=np.float32)
 length = len(X_train)
 
 # Reshape the data to 3D for Conv1D layer
-X_train = X_train.reshape((len(X_train), 2, 1))
-X_test = X_test.reshape((len(X_test), 2, 1))
+X_train = X_train.reshape((1, len(X_train), 2))
+X_test = X_test.reshape((1, len(X_test), 2))
 
 # Reshape the labels to match the shape required
-y_train = y_train.reshape((len(y_train), 1, 1))
-y_test = y_test.reshape((len(y_test), 1, 1))
+y_train = y_train.reshape((1, len(y_train), 1))
+y_test = y_test.reshape(1, len(y_test), 1)
 
 # Build the model
 model = Sequential()
 
 # Reduced kernel size and added padding='same' to avoid reducing the output size
-model.add(Conv1D(1, kernel_size=1000, activation='relu', input_shape=(2,1), padding='same'))
-model.add(Dense(1,activation='linear'))
+model.add(Conv1D(1, kernel_size=1000, activation='relu', input_shape=(length,2), padding='same'))
+model.add(MaxPooling1D(pool_size=5))
+print(model.output_shape)
+model.add(Flatten())
+print(model.output_shape)
+model.add(Dense(model.output_shape[1], activation='relu'))
+print(model.output_shape)
+model.add(Dense(1,activation='softmax'))
+print(model.output_shape)
 
 # Compile the model
 model.compile(loss='mean_squared_error', optimizer='adam')
 
 # Train the model
-model.fit(X_train, y_train, epochs=50, batch_size=500, validation_data=(X_test, y_test),verbose=1)
+model.fit(X_train, y_train, epochs=10, batch_size=500, validation_data=(X_test, y_test), verbose=1)
 
 # Evaluate the model
 
