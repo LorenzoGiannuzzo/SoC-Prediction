@@ -2,10 +2,13 @@ import pandas as pd
 import keras
 import numpy as np
 import matplotlib.pyplot as plt
-from df_importer import test_1a, test_2a
-from df_explorer import HPPC_Dis, HPPC_Cha, OCV_Cha, OCV_Dis
 import tensorflow as tf
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+from df_importer import test_1a, test_2a
+from df_explorer import HPPC_Dis, HPPC_Cha, OCV_Cha, OCV_Dis
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
 
 # Supponiamo che 'test_1a' e 'test_2a' siano già caricati con i dati giusti, come nel tuo esempio.
 # Extration of Charge and Discharge HPPC DATA
@@ -51,28 +54,18 @@ y_test = np.array(test_1a.iloc[3:, [3]], dtype=np.float32)
 X_test[:, 0] = (X_test[:, 0] - mean_V) / std_V
 X_test[:, 1] = (X_test[:, 1] - mean_I) / std_I
 
-# FEATURES CREATION
-x_full_train = np.array(x_full_train)
-x_full_test = np.array(X_test)
-
-# Aggiunta dello stato di carica precedente come feature
+# Aggiunta dello stato di carica precedente come feature nel training set
 soc_previous_train = np.roll(y_train, shift=1)
 soc_previous_train[0] = y_train[0]  # Il primo valore non ha un precedente, lo manteniamo uguale
 x_full_train = np.column_stack((x_full_train, soc_previous_train))
 
-soc_previous_test = np.roll(y_test, shift=1)
-soc_previous_test[0] = y_test[0]
-x_full_test = np.column_stack((x_full_test, soc_previous_test))
-
-# CREATING 3D ARRAY FOR LSTM
+# CREATING 3D ARRAY FOR LSTM (train set)
 sample_size_train = x_full_train.shape[0]
-sample_size_test = x_full_test.shape[0]
 time_steps = x_full_train.shape[1]
 input_dimension = 1
 
 # RESHAPING THE INPUT DATA
 x_full_train_reshaped = x_full_train.reshape(sample_size_train, time_steps, input_dimension)
-x_full_test_reshaped = x_full_test.reshape(sample_size_test, time_steps, input_dimension)
 
 print("After reshape training data shape:\n", x_full_train_reshaped.shape)
 print("1 Sample shape:\n", x_full_train_reshaped[0].shape)
@@ -106,14 +99,22 @@ history = model_lstm.fit(np.array(x_full_train_reshaped, dtype=np.float32),
                          np.array(y_full_train, dtype=np.float32),
                          epochs=50, validation_split=0.2, verbose=1)
 
-# RECURSIVE PREDICTION
+# PREDIZIONE RICORSIVA (use predicted SoC as input at each step)
 y_pred_recursive = []
 current_soc = y_test[0]  # Primo SoC noto
 
+# Crea un array per x_full_test da aggiornare con SoC ricorsivi predetti
+# Imposta il primo valore della colonna del SoC a y_test[0]
+x_full_test_ricorsivo = np.column_stack((X_test, np.zeros(X_test.shape[0])))
+x_full_test_ricorsivo[0, 2] = current_soc  # Assegna il SoC iniziale al primo valore
+
 # Loop attraverso i timestep
-for i in range(len(x_full_test_reshaped)):
+for i in range(len(X_test)):
+    # Aggiunge lo SoC precedente (predetto) come input al timestep successivo
+    x_full_test_ricorsivo[i, 2] = current_soc  # Colonna 2 è il SoC precedente
+
     # Prepara l'input per il modello: features + SoC precedente
-    input_data = x_full_test_reshaped[i].reshape(1, -1, 1)
+    input_data = x_full_test_ricorsivo[i].reshape(1, -1, 1)
 
     # Predici il SoC corrente
     predicted_soc = model_lstm.predict(input_data)
